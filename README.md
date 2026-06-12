@@ -66,7 +66,7 @@ python recommender_sklearn.py
 - Intermediate files (`p_s_1.txt`, `tf_idf_number.txt`) are generated automatically when running the recommender — no need to create them manually.
 - `recommender_manual.py` is meant to demonstrate the math behind TF-IDF and cosine similarity step by step, without relying on machine learning libraries.
 
-👤 Author
+##👤 Author
 Morteza Pazhoum — @MortezaPZ
 
 K.N. Toosi University of Technology — Computer Science
