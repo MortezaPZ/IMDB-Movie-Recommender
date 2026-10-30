@@ -1,72 +1,47 @@
-# 🎬 IMDB Movie Recommender
+# IMDb Movie Recommender
 
-A content-based movie recommendation system built on the **IMDB Top 250** list. It scrapes plot summaries, computes **TF-IDF** vectors from scratch, and recommends similar movies using **cosine similarity**. 🍿
+A small content-based movie similarity project that compares a manual TF-IDF implementation with scikit-learn.
 
-## ✨ Features
+## Features
 
-- 🕷️ **Web Scraper** (`crawler.py`) — collects and cleans plot summaries for the IMDB Top 250 movies
-- 🧮 **TF-IDF from scratch** — implemented manually with `math` and basic Python (no `sklearn` for the core algorithm)
-- 🔍 **Cosine Similarity Search** — takes a short plot description as input and returns the 6 most similar movies
-- ⚡ **scikit-learn version** (`recommender_sklearn.py`) — an alternative implementation using `TfidfVectorizer` and `KNeighborsClassifier`
+- Collects movie titles and plot summaries into a local dataset when source access is permitted
+- Implements TF-IDF and cosine similarity with Python's standard library
+- Provides a second implementation using scikit-learn's TF-IDF vectorizer and nearest neighbors
+- Keeps generated source data out of Git
 
-## 📂 Project Structure
+## Project layout
 
-```
-├── crawler.py              # Scrapes plot summaries from IMDB Top 250
-├── recommender_manual.py   # TF-IDF + cosine similarity, implemented from scratch
-├── recommender_sklearn.py  # TF-IDF + KNN using scikit-learn
-└── plot_summaries.txt      # Generated dataset (movie name + cleaned summary)
-```
+- crawler.py collects page data into plot_summaries.txt.
+- dataset.py reads local title;summary; rows.
+- recommender_manual.py ranks titles with the manual TF-IDF implementation.
+- recommender_sklearn.py ranks titles with scikit-learn.
 
-## 🚀 Getting Started
+## Requirements
 
-### 1️⃣ Install dependencies
+- Python 3.10+
+- requests
+- Beautiful Soup
+- scikit-learn
 
-```bash
-pip install requests beautifulsoup4 nltk numpy scikit-learn
-```
+Install dependencies:
 
-### 2️⃣ Download NLTK stopwords (one-time setup)
+    python -m pip install requests beautifulsoup4 scikit-learn
 
-```python
-import nltk
-nltk.download('stopwords')
-```
+## Prepare data
 
-### 3️⃣ Run the crawler to build the dataset
+The dataset is not included. The optional crawler accesses IMDb pages, and their structure can change. Before running it, check the source's current terms and automated-access rules. Do not redistribute scraped plot summaries. For an offline run, provide a dataset you are permitted to use in the same title;summary; format.
 
-```bash
-python crawler.py
-```
+When permitted:
 
-This creates `plot_summaries.txt`, containing the IMDB Top 250 movie names and their cleaned plot summaries.
+    python crawler.py
 
-### 4️⃣ Get recommendations
+The crawler writes plot_summaries.txt in the repository root and waits between detail-page requests. Git ignores this generated file.
 
-```bash
-python recommender_manual.py
-```
+## Get recommendations
 
-You'll be asked to enter a short summary describing the kind of movie you're looking for. The script appends your input to `plot_summaries.txt`, computes TF-IDF vectors for all 251 entries (250 movies + your input), saves them to `tf_idf_number.txt`, and prints the **6 most similar movies** based on cosine similarity.
+Run either implementation from the repository root:
 
-Alternatively, run the scikit-learn version:
+    python recommender_manual.py
+    python recommender_sklearn.py
 
-```bash
-python recommender_sklearn.py
-```
-
-## 🛠️ How It Works
-
-1. **Scraping** — `crawler.py` fetches the IMDB Top 250 list, visits each movie's plot summary page, and cleans the text (removes punctuation and stopwords).
-2. **TF-IDF** — for every word across all summaries, **TF (Term Frequency)** and **IDF (Inverse Document Frequency)** are calculated manually, and combined into a TF-IDF vector for each movie.
-3. **Similarity Search** — the user's input summary is vectorized the same way, and **cosine similarity** is used to rank and return the closest matching movies.
-
-## 📝 Notes
-
-- Intermediate files (`p_s_1.txt`, `tf_idf_number.txt`) are generated automatically when running the recommender — no need to create them manually.
-- `recommender_manual.py` is meant to demonstrate the math behind TF-IDF and cosine similarity step by step, without relying on machine learning libraries.
-
-## 👤 Author
-Morteza Pazhoum — @MortezaPZ
-
-K.N. Toosi University of Technology — Computer Science
+Enter a short plot description when prompted. Each program prints up to six similar titles with a cosine-similarity score. The query is not written into the dataset.

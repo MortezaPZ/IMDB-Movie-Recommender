@@ -1,25 +1,44 @@
+"""Content-based recommendations using scikit-learn TF-IDF and nearest neighbors."""
+
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.neighbors import KNeighborsClassifier
+from sklearn.neighbors import NearestNeighbors
 
-with open('plot_summaries.txt', 'r', encoding='utf-8') as f:
-    plot_summaries = [line.strip() for line in f.read().strip().split(';')]
+from dataset import load_documents
 
-input_summary = input('Please input the summary: ') # Get input summary from user
-text_summaries = [summary for summary in plot_summaries[1::2]] # Extract text summaries
 
-tfidf_vectorizer = TfidfVectorizer() # Create a TF-IDF vectorizer 
-tfidf_matrix = tfidf_vectorizer.fit_transform(text_summaries) # transform the text summaries into a TF-IDF matrix
+def main() -> None:
+    documents = load_documents()
+    titles = [title for title, _ in documents]
+    summaries = [summary for _, summary in documents]
+    query = input("Describe the kind of movie you want: ").strip()
+    if not query:
+        print("Enter a non-empty description.")
+        return
 
-knn = KNeighborsClassifier(n_neighbors=5, metric='cosine') # crrat the Object of KNeighborsClassifier class
-knn.fit(tfidf_matrix, range(len(text_summaries))) # fit the KNN
+    vectorizer = TfidfVectorizer(stop_words="english")
+    try:
+        matrix = vectorizer.fit_transform(summaries)
+    except ValueError as error:
+        print(f"Could not build the vocabulary: {error}")
+        return
 
-input_matrix = tfidf_vectorizer.transform([input_summary]) # Transform the input summary into a TF-IDF matrix 
+    query_vector = vectorizer.transform([query])
+    if query_vector.nnz == 0:
+        print("No query words matched the dataset vocabulary.")
+        return
 
-cosine, recommendation_array = knn.kneighbors(input_matrix, n_neighbors=5) # Find the top 5 nearest neighbors
+    neighbors = NearestNeighbors(
+        metric="cosine",
+        algorithm="brute",
+        n_neighbors=min(6, len(documents)),
+    )
+    neighbors.fit(matrix)
+    distances, indices = neighbors.kneighbors(query_vector)
 
-def main(): # Define the main function to print the recommended summaries
-    for rank, index in enumerate(recommendation_array[0]):
-        print(f"Rank {rank + 1}: {plot_summaries[index * 2]}")
+    for rank, (distance, index) in enumerate(zip(distances[0], indices[0]), start=1):
+        similarity = max(0.0, 1.0 - float(distance))
+        print(f"{rank}. {titles[index]} — similarity {similarity:.3f}")
+
 
 if __name__ == "__main__":
     main()

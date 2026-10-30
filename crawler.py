@@ -1,29 +1,99 @@
-import requests as rq
-from bs4 import BeautifulSoup as bs
-import string
-from nltk.corpus import stopwords
+"""Build a local title/plot dataset when access is permitted by the source."""
 
-stop_words = set(stopwords.words('english'))  # Download stopwords
-header = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0"}
-page = rq.get('https://www.imdb.com/chart/top/', headers=header)
-soup = bs(page.text, 'html.parser')
-movie_links = [a['href'] for a in soup.find_all('a', class_="ipc-title-link-wrapper")]
+from __future__ import annotations
 
-with open('plot_summaries.txt', 'w+', encoding='utf-8') as f:
-    for link in movie_links:
-        new_page = rq.get('https://m.imdb.com/' + f"{link[:17]}" + 'plotsummary/?ref_=tt_stry_pl', headers=header)
-        new_soup = bs(new_page.text, 'html.parser')
-        plot_summaries_1 = new_soup.find(class_='sc-a885edd8-9 dcErWY')
-        plot_summaries = new_soup.find_all(attrs={'data-testid': "sub-section-summaries"})
-        if not plot_summaries:
-            new_page = rq.get('https://m.imdb.com/' + f"{link[:18]}" + 'plotsummary/?ref_=tt_stry_pl', headers=header)
-            plot_summaries_1 = new_soup.find(class_='sc-a885edd8-9 dcErWY')
-            plot_summaries = new_soup.find_all(attrs={'data-testid': "sub-section-summaries"})
-        if plot_summaries:
-            plat_text_1 = plot_summaries_1.get_text(strip=True, separator='\n')
-            plot_text = [p.get_text(strip=True, separator='\n') for p in plot_summaries]
-            plot_text_no_punct = [pt.translate(str.maketrans('', '', string.punctuation)) for pt in plot_text]
-            words = plot_text_no_punct
-            filtered_words = [[word for word in w.split() if word.lower() not in stop_words] for w in words]
-            filtered_plot_text = [' '.join(fw) for fw in filtered_words]
-            f.write(f'{plat_text_1};{" ".join(filtered_plot_text)};\n')
+import re
+import time
+from pathlib import Path
+from urllib.parse import urljoin
+
+import requests
+from bs4 import BeautifulSoup
+
+BASE_URL = "https://www.imdb.com"
+OUTPUT_PATH = Path(__file__).resolve().parent / "plot_summaries.txt"
+REQUEST_DELAY_SECONDS = 1.0
+HEADERS = {
+    "User-Agent": (
+        "IMDbMovieRecommender/1.0 "
+        "(educational project; https://github.com/MortezaPZ/IMDB-Movie-Recommender)"
+    )
+}
+TITLE_ID = re.compile(r"^/title/(tt\d+)(?:/|$)")
+
+
+def fetch_page(session: requests.Session, url: str) -> BeautifulSoup:
+    response = session.get(url, timeout=(5, 20))
+    response.raise_for_status()
+    return BeautifulSoup(response.text, "html.parser")
+
+
+def clean_text(value: str) -> str:
+    return re.sub(r"\s+", " ", value).replace(";", ",").strip()
+
+
+def get_top_movies(page: BeautifulSoup) -> list[tuple[str, str]]:
+    movies = []
+    seen_ids = set()
+    for link in page.select("a.ipc-title-link-wrapper[href]"):
+        match = TITLE_ID.match(link["href"])
+        if not match or match.group(1) in seen_ids:
+            continue
+        title_id = match.group(1)
+        title = clean_text(link.get_text(" ", strip=True))
+        seen_ids.add(title_id)
+        movies.append((title_id, title))
+        if len(movies) == 250:
+            break
+    return movies
+
+
+def get_plot_summary(page: BeautifulSoup) -> str:
+    summaries = []
+    for section in page.find_all(attrs={"data-testid": "sub-section-summaries"}):
+        text = clean_text(section.get_text(" ", strip=True))
+        if text and text not in summaries:
+            summaries.append(text)
+    return " ".join(summaries)
+
+
+def main() -> None:
+    with requests.Session() as session:
+        session.headers.update(HEADERS)
+        chart = fetch_page(session, urljoin(BASE_URL, "/chart/top/"))
+        movies = get_top_movies(chart)
+        if not movies:
+            raise SystemExit("No movie links found. The source page markup may have changed.")
+
+        saved = 0
+        with OUTPUT_PATH.open("w", encoding="utf-8", newline="\n") as output:
+            for index, (title_id, chart_title) in enumerate(movies, start=1):
+                if index > 1:
+                    time.sleep(REQUEST_DELAY_SECONDS)
+                url = urljoin(BASE_URL, f"/title/{title_id}/plotsummary/")
+                try:
+                    page = fetch_page(session, url)
+                except requests.RequestException as error:
+                    status = error.response.status_code if error.response is not None else None
+                    if status in {403, 429}:
+                        raise SystemExit(
+                            f"Source returned HTTP {status}; stopping instead of retrying."
+                        ) from error
+                    print(f"Skipped {title_id}: {error}")
+                    continue
+
+                heading = page.find("h1", attrs={"data-testid": "hero__pageTitle"})
+                title = clean_text(heading.get_text(" ", strip=True)) if heading else chart_title
+                summary = get_plot_summary(page)
+                if not summary:
+                    print(f"Skipped {title_id}: no plot summary was found.")
+                    continue
+                output.write(f"{title or title_id};{summary};\n")
+                saved += 1
+                print(f"[{index}/{len(movies)}] saved {title or title_id}")
+
+    print(f"Saved {saved} summaries to {OUTPUT_PATH.name}.")
+
+
+if __name__ == "__main__":
+    main()

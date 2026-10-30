@@ -1,7 +1,4 @@
 __pycache__/
 *.py[cod]
 .venv/
-tfidf_vectors.txt
-p_s_1.txt
-tf_idf_number.txt
 plot_summaries.txt
