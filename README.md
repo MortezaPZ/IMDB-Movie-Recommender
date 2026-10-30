@@ -7,7 +7,7 @@ A content-based movie recommendation system built on the **IMDB Top 250** list. 
 - 🕷️ **Web Scraper** (`crawler.py`) — collects and cleans plot summaries for the IMDB Top 250 movies
 - 🧮 **TF-IDF from scratch** — implemented manually with `math` and basic Python (no `sklearn` for the core algorithm)
 - 🔍 **Cosine Similarity Search** — takes a short plot description as input and returns the 6 most similar movies
-- ⚡ **scikit-learn version** (`main.py`) — an alternative implementation using `TfidfVectorizer` and `KNeighborsClassifier`
+- ⚡ **scikit-learn version** (`recommender_sklearn.py`) — an alternative implementation using `TfidfVectorizer` and `KNeighborsClassifier`
 
 ## 📂 Project Structure
 

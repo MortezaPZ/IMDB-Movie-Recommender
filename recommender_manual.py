@@ -16,9 +16,8 @@ input_summary = [word for word in input_summery if word.lower() not in stop_word
 input_summary = [''.join(fw) for fw in input_summary]
 text.write(f"movie;{' '.join(input_summary)};") # write the input summary to text file
 text.close()
-text_r = open('plot_summaries.txt', 'r+')
-text_1 = open('p_s_1.txt', 'r+')
-text_2 = open('tf_idf_number.txt', 'w+') 
+text_r = open('plot_summaries.txt', 'r+', encoding='utf-8')
+text_1 = open('p_s_1.txt', 'w+', encoding='utf-8')
 
 #step 3
 
